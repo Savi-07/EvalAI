@@ -1,131 +1,167 @@
-# MCQ Checker App
+# 🧠 EvalAI - MCQ Checker App
 
-A Flutter application that captures or selects images of MCQ answer sheets and sends them to an n8n webhook for automated processing using Google Cloud Vision API.
+A **cross-platform Flutter application** for smart exam evaluation. Capture or select images of MCQ answer sheets and get instant results via an integrated [n8n](https://n8n.io/) workflow powered by **Google Gemini**.
 
-## Features
+---
 
-- **Camera Integration**: Take photos directly within the app
-- **Gallery Selection**: Choose existing images from device gallery
-- **Webhook Integration**: Automatically sends images to your n8n workflow
-- **Real-time Results**: Displays processed MCQ results from the webhook
-- **Cross-platform**: Works on both Android and iOS
+## 🚀 Features
 
-## Prerequisites
+- 📷 **Camera Integration**  
+  Take photos of answer sheets directly in the app.
 
-1. **Flutter SDK**: Ensure you have Flutter installed and configured
-2. **n8n Workflow**: Your n8n workflow should be set up with:
-   - Webhook node (receiving images)
-   - Google Cloud Vision API node (OCR processing)
-   - JavaScript code node (MCQ parsing)
-   - Response handling
+- 🖼️ **Gallery Selection**  
+  Pick existing images from your device.
 
-## Setup Instructions
+- 🌐 **Webhook Automation**  
+  Images are sent to your n8n workflow for processing via a `/mcq-checker` webhook.
 
-### 1. Install Dependencies
+- 🤖 **AI-Powered Extraction**  
+  Google Gemini model (`models/gemini-2.5-pro`) analyzes the image to extract:
+  - Name  
+  - Roll number  
+  - Email  
+  - Correct answers  
+  - Total questions  
+  - Marks obtained  
+  - Percentage  
 
-```bash
-flutter pub get
+- 📦 **Structured Output Parsing**  
+  AI output is validated against a defined JSON schema.
+
+- ⚡ **Real-time Results**  
+  App instantly receives parsed MCQ scores.
+
+- 📧 **Automated Email Sending**  
+  Sends a result email with pass/fail status based on percentage.
+
+- 🎨 **Modern UI**  
+  Responsive Material Design with a clean, intuitive interface.
+
+- 🖥️ **Multi-platform**  
+  Works on **Android**, **iOS**, **macOS**, **Windows**, **Linux**, and **Web**.
+
+---
+
+## 📁 Folder Structure
+
+```
+lib/
+  ├── config.dart           # App configuration (webhook URL, settings)
+  ├── main.dart             # App entry point
+  ├── models/               # Data models (MCQ results, responses)
+  ├── screens/              # UI screens (upload, results, etc.)
+  └── widgets/              # Reusable UI components
+
+assets/
+  └── images/               # App icons and images
+
+android/, ios/, macos/, linux/, windows/, web/
+  └── Platform-specific setup and resources
+
+quiz_automation.json        # n8n workflow definition
+pubspec.yaml                # Dependencies and assets
+README.md                   # Project documentation
+LICENSE                     # MIT License
 ```
 
-### 2. Platform-specific Setup
+---
 
-#### Android
-- Camera and storage permissions are automatically added to `AndroidManifest.xml`
-- No additional configuration needed
+## 🛠️ Setup Instructions
 
-#### iOS
-- Camera and photo library usage descriptions are automatically added to `Info.plist`
-- No additional configuration needed
+1. **Install Dependencies**
+   ```bash
+   flutter pub get
+   ```
 
-### 3. Configure Webhook URL
+2. **Configure Webhook and App Info**  
+   Edit [`lib/config.dart`](lib/config.dart) and update the following fields:
 
-The app is configured to send images to:
-```
-https://savi-07.app.n8n.cloud/webhook-test/mcq-checker
-```
+   ```dart
+   import 'package:flutter/material.dart';
 
-To change this URL, modify the `_sendImageToWebhook` method in `lib/main.dart`.
+   class AppConfig {
+     // n8n Webhook Configuration
+     static const String webhookUrl = 'YOUR_WEBHOOK_URL';
 
-### 4. Build and Run
+     // App Settings
+     static const String appName = 'YOUR_APP_NAME';
+     static const String appSubtitle = 'YOUR_APP_SUBTITLE';
+     static const String appVersion = '1.0.0';
 
-```bash
-# For Android
-flutter run
+     // Camera Settings
+     static const int maxImageSize = 10 * 1024 * 1024; // 10MB
+     static const List<String> supportedImageFormats = ['jpg', 'jpeg', 'png'];
 
-# For iOS
-flutter run -d ios
+     // UI Settings
+     static const double cameraPreviewAspectRatio = 4 / 3;
+     static const Duration processingTimeout = Duration(seconds: 30);
 
-# For web
-flutter run -d chrome
-```
+     // Colors
+     static const Color primaryColor = Colors.red;
+     static const Color secondaryColor = Colors.blue;
+   }
+   ```
 
-## How It Works
+3. **Run the App**
+   ```bash
+   flutter run
+   ```
 
-1. **Image Capture/Selection**: User takes a photo or selects from gallery
-2. **Image Processing**: App prepares the image for webhook transmission
-3. **Webhook Request**: Image is sent as multipart form data to n8n
-4. **n8n Processing**: Your workflow processes the image using Google Cloud Vision
-5. **Result Display**: Processed MCQ results are displayed in the app
+---
 
-## Expected n8n Workflow
+## 🤖 How It Works (n8n Workflow Steps)
 
-Your n8n workflow should include:
+1. **Webhook**  
+   Listens for a **POST** request on `/mcq-checker` and receives the image.
 
-1. **Webhook Node**: Receives POST requests with image files
-2. **Google Cloud Vision Node**: Extracts text from the image
-3. **JavaScript Code Node**: Parses MCQ answers using your provided code
-4. **Response Node**: Returns structured JSON with name, roll number, and answers
+2. **Google Gemini Chat Model**  
+   Uses `models/gemini-2.5-pro` to process the uploaded answer sheet image.
 
-## JavaScript Code for n8n
+3. **Basic LLM Chain**  
+   AI extracts required details from the image: name, roll number, email, answers, score, and percentage.
 
-```javascript
-// Extract the full text returned by Google Vision API
-const text = $json.responses[0].fullTextAnnotation.text;
+4. **Structured Output Parser**  
+   Ensures AI output matches the expected JSON structure.
 
-// Match "Name" and "Roll No" from the OCR text
-const nameMatch = text.match(/Name:\s*(.+)/i);
-const rollMatch = text.match(/Roll\s*No:\s*(\d+)/i);
+5. **Respond to Webhook**  
+   Sends a JSON response back to the app with all extracted details.  
+   If email is missing, uses a default email.
 
-// Extract answers like "Q1: A", "Q2: C", etc.
-const answers = {};
-text.split('\n').forEach(line => {
-  const match = line.match(/Q\s*(\d+):\s*([A-D])/i);
-  if (match) {
-    answers[match[1]] = match[2].toUpperCase();
-  }
-});
+6. **Send a Message (Gmail)**  
+   Emails the results to the extracted or default email address.  
+   Includes pass/fail status depending on the percentage.
 
-// Output structured JSON
-return {
-  name: nameMatch ? nameMatch[1].trim() : null,
-  rollNo: rollMatch ? rollMatch[1] : null,
-  answers: answers
-};
-```
+---
 
-## Troubleshooting
+## 🔍 Visual Workflow Diagram
 
-### Common Issues
+<img width="1058" height="505" alt="{46EC7F99-B9D1-4FB7-B4A5-9BCDE80C8A0A}" src="https://github.com/user-attachments/assets/c5b233dc-e401-4f1e-82c4-331386c113bd" />
 
-1. **Camera Permission Denied**: Ensure camera permissions are granted in device settings
-2. **Image Upload Fails**: Check your n8n webhook URL and network connectivity
-3. **Build Errors**: Run `flutter clean` and `flutter pub get` to resolve dependency issues
 
-### Debug Mode
+---
 
-Enable debug mode to see detailed logs:
-```bash
-flutter run --debug
-```
+## 📦 Tech Stack
 
-## Future Enhancements
+- **Flutter** (Dart)
+- **n8n** (Workflow Automation)
+- **Google Gemini** (AI Processing)
+- **Material Design**
 
-- [ ] Local storage of MCQ results
-- [ ] Result history and comparison
-- [ ] Batch processing of multiple images
-- [ ] Export results to various formats
-- [ ] Offline mode with local OCR processing
+---
 
-## License
+## 🔮 Future Enhancements
 
-This project is open source and available under the MIT License.
+- Local storage of MCQ results
+- Result history and comparison
+- Batch processing of multiple images
+- Export results to various formats
+
+---
+
+## 📝 License
+
+MIT License © 2025 Sahil Kumar Singh
+
+---
+
+> _Smart. Fast. Automated. Exams._
