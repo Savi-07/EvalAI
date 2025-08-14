@@ -1,0 +1,187 @@
+{
+  "name": "quiz_automation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mcq-checker",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1184,
+        -16
+      ],
+      "id": "67ad1cb7-96c3-4bfc-b361-c998373fcce7",
+      "name": "Webhook",
+      "webhookId": "4699d5e0-2eb8-48ce-acde-1f9fc0284c91"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are analyzing an MCQ answer sheet image. \nExtract:\n- Name\n- Roll number\n- Answers given\n- Total number of questions\n- Marks obtained\n- Percentage\nCorrect answers: 1) A, 2) B, 3) C, 4) B, 5) A, 6) A\n\n",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "type": "HumanMessagePromptTemplate",
+              "messageType": "imageBinary",
+              "binaryImageDataKey": "=image"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1712,
+        -336
+      ],
+      "id": "a14ab080-4d7d-4d11-ba5a-2f73942e19e1",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-pro",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1616,
+        192
+      ],
+      "id": "a51674f7-8959-41c0-89c2-87ef75cd2b63",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "8VVlHLyGXLucTlFW",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n\"output\": \n[\n{\n\"name\": \n\"{{ $json.output[0].name }}\",\n\"roll\": \n\"{{ $json.output[0].roll }}\",\n\"email\": \n\"{{ /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test($json[\"output\"][0]?.email) ? $json[\"output\"][0].email : \"sahiltheking07@mail.com\" }}\",\n\"correct_answers\": {{ $json.output[0].correct_answers }}\n,\n\"total_questions\": {{ $json.output[0].total_questions }}\n,\n\"marks_obtained\": {{ $json.output[0].marks_obtained }}\n,\n\"percentage\": \n{{ $json.output[0].percentage }}\n}\n]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2592,
+        -336
+      ],
+      "id": "dfea2808-c7c7-470d-8e76-a5c83885744c",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "[\n  {\n    \"name\": \"Sahil\",\n    \"roll\": \"14221221\",\n    \"email\": \"name@mail.com\",\n    \"correct_answers\": 2,\n    \"total_questions\": 6,\n    \"marks_obtained\": 2,\n    \"percentage\": 33.33\n  }\n]"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        2128,
+        144
+      ],
+      "id": "b1127872-034b-4f12-a4b4-e1a835dc044d",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test($json[\"output\"][0]?.email) ? $json[\"output\"][0].email : \"sahiltheking07@mail.com\" }}\n",
+        "subject": "Result",
+        "message": "={{ $json[\"output\"][0].name }}, \n\nYou answered {{ $json[\"output\"][0].correct_answers }} out of {{ $json[\"output\"][0].total_questions }} questions correctly, achieving a score of {{ $json[\"output\"][0].percentage }}%. \n\n{{ $json[\"output\"][0].percentage < 33 ? \"Unfortunately, you did not qualify.\" : \"Congratulations, you have passed the exam!\" }}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2496,
+        224
+      ],
+      "id": "bdd9ba82-e258-4e42-b448-4369fe6110b3",
+      "name": "Send a message",
+      "webhookId": "611ecbaf-d8f9-4c51-89da-d727b83750c9",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "rZrRPXu0XCerNGbw",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d4f4a509-d737-4507-a741-2bf5301cd52a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a64c199bfdd16e8795db511f8b511861e656e530bf61353d0bc983e3b9ba8468"
+  },
+  "id": "GMFgRwCb5kqQxcFL",
+  "tags": []
+}
